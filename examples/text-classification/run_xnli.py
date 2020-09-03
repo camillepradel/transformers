@@ -159,11 +159,9 @@ def train(args, train_dataset, model, tokenizer):
 
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
-            inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
-            if args.model_type != "distilbert":
-                inputs["token_type_ids"] = (
-                    batch[2] if args.model_type in ["bert"] else None
-                )  # XLM and DistilBERT don't use segment_ids
+            inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[2]}
+            if args.model_type not in ["distilbert", "xlm", "xlm-roberta"]: # XLM and DistilBERT don't use segment_ids
+                inputs["token_type_ids"] = batch[3]
             outputs = model(**inputs)
             loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
 
@@ -266,11 +264,9 @@ def evaluate(args, model, tokenizer, prefix=""):
             batch = tuple(t.to(args.device) for t in batch)
 
             with torch.no_grad():
-                inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
-                if args.model_type != "distilbert":
-                    inputs["token_type_ids"] = (
-                        batch[2] if args.model_type in ["bert"] else None
-                    )  # XLM and DistilBERT don't use segment_ids
+                inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[2]}
+                if args.model_type not in ["distilbert", "xlm", "xlm-roberta"]: # XLM and DistilBERT don't use segment_ids
+                    inputs["token_type_ids"] = batch[3]
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -340,13 +336,17 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     # Convert to Tensors and build dataset
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_attention_mask = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
-    all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
     if output_mode == "classification":
         all_labels = torch.tensor([f.label for f in features], dtype=torch.long)
     else:
         raise ValueError("No other `output_mode` for XNLI.")
 
-    dataset = TensorDataset(all_input_ids, all_attention_mask, all_token_type_ids, all_labels)
+    if args.model_type not in ["distilbert", "xlm", "xlm-roberta"]:
+        all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
+        dataset = TensorDataset(all_input_ids, all_attention_mask, all_labels, all_token_type_ids)
+    else:
+        dataset = TensorDataset(all_input_ids, all_attention_mask, all_labels)
+
     return dataset
 
 
@@ -546,6 +546,7 @@ def main():
         cache_dir=args.cache_dir,
     )
     args.model_type = config.model_type
+    print(f'args.model_type: {args.model_type}')
     tokenizer = AutoTokenizer.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
         do_lower_case=args.do_lower_case,
