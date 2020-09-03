@@ -160,7 +160,7 @@ def train(args, train_dataset, model, tokenizer):
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
             inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[2]}
-            if args.model_type not in ["distilbert", "xlm", "xlm-roberta"]: # XLM and DistilBERT don't use segment_ids
+            if args.model_type not in ["distilbert", "xlm", "xlm-roberta"]:  # XLM and DistilBERT don't use segment_ids
                 inputs["token_type_ids"] = batch[3]
             outputs = model(**inputs)
             loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
@@ -265,7 +265,11 @@ def evaluate(args, model, tokenizer, prefix=""):
 
             with torch.no_grad():
                 inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[2]}
-                if args.model_type not in ["distilbert", "xlm", "xlm-roberta"]: # XLM and DistilBERT don't use segment_ids
+                if args.model_type not in [
+                    "distilbert",
+                    "xlm",
+                    "xlm-roberta",
+                ]:  # XLM and DistilBERT don't use segment_ids
                     inputs["token_type_ids"] = batch[3]
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
@@ -324,7 +328,11 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
             processor.get_test_examples(args.data_dir) if evaluate else processor.get_train_examples(args.data_dir)
         )
         features = convert_examples_to_features(
-            examples, tokenizer, max_length=args.max_seq_length, label_list=label_list, output_mode=output_mode,
+            examples,
+            tokenizer,
+            max_length=args.max_seq_length,
+            label_list=label_list,
+            output_mode=output_mode,
         )
         if args.local_rank in [-1, 0]:
             logger.info("Saving features into cached file %s", cached_features_file)
@@ -546,7 +554,7 @@ def main():
         cache_dir=args.cache_dir,
     )
     args.model_type = config.model_type
-    print(f'args.model_type: {args.model_type}')
+    print(f"args.model_type: {args.model_type}")
     tokenizer = AutoTokenizer.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
         do_lower_case=args.do_lower_case,
